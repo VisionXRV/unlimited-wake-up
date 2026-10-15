@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Server Waker – alle 3 Minuten</title>
+<style>
+  :root{
+    --bg:#0b1020;
+    --panel:#141b33;
+    --panel2:#1b2447;
+    --accent:#4ade80;
+    --accent2:#38bdf8;
+    --text:#e6ecff;
+    --muted:#8b96b8;
+    --danger:#f87171;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 20% -10%,#1e2a5a 0%,var(--bg) 55%);
+    color:var(--text);
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:24px 16px 40px;
+  }
+  h1{font-size:1.6rem;letter-spacing:.5px;margin-bottom:4px}
+  .sub{color:var(--muted);font-size:.95rem;margin-bottom:22px;text-align:center}
+  .card{
+    width:100%;
+    max-width:640px;
+    background:var(--panel);
+    border:1px solid #263159;
+    border-radius:16px;
+    padding:22px;
+    box-shadow:0 18px 45px rgba(0,0,0,.45);
+    margin-bottom:18px;
+  }
+  .clock{
+    font-variant-numeric:tabular-nums;
+    font-size:4.4rem;
+    font-weight:700;
+    text-align:center;
+    color:var(--accent2);
+    line-height:1;
+    text-shadow:0 0 24px rgba(56,189,248,.35);
+  }
+  .clock small{display:block;font-size:.95rem;font-weight:400;color:var(--muted);margin-top:10px;text-shadow:none}
+  .state{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    margin-top:16px;font-size:1rem;
+  }
+  .dot{width:11px;height:11px;border-radius:50%;background:var(--muted);flex:none}
+  .dot.on{background:var(--accent);box-shadow:0 0 12px var(--accent);animation:blink .8s infinite alternate}
+  .dot.off{background:var(--danger);box-shadow:0 0 12px var(--danger)}
+  @keyframes blink{from{opacity:.45}to{opacity:1}}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  input[type=text]{
+    flex:1;min-width:220px;
+    background:var(--panel2);
+    border:1px solid #2e3a6b;
+    color:var(--text);
+    padding:11px 13px;border-radius:10px;font-size:.95rem;outline:none;
+  }
+  input[type=text]:focus{border-color:var(--accent2)}
+  button{
+    background:var(--accent);
+    color:#06240f;
+    border:0;padding:11px 20px;border-radius:10px;
+    font-weight:700;font-size:.95rem;cursor:pointer;
+    transition:transform .1s,filter .15s;
+  }
+  button:hover{filter:brightness(1.08)}
+  button:active{transform:scale(.97)}
+  button.secondary{background:var(--panel2);color:var(--text);border:1px solid #2e3a6b}
+  .log{
+    background:#0a0f22;
+    border:1px solid #263159;
+    border-radius:12px;
+    padding:12px 14px;
+    max-height:180px;overflow-y:auto;
+    font-family:Consolas,"Courier New",monospace;
+    font-size:.82rem;line-height:1.7;color:var(--muted);
+    width:100%;max-width:640px;
+  }
+  .log b{color:var(--accent)}
+  .log i{color:var(--accent2);font-style:normal}
+  .log .warn{color:var(--danger)}
+  .stats{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
+  .stat{
+    flex:1;min-width:130px;
+    background:var(--panel2);border:1px solid #2e3a6b;
+    border-radius:12px;padding:12px;text-align:center;
+  }
+  .stat .v{font-size:1.5rem;font-weight:700;color:var(--accent)}
+  .stat .l{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-top:3px}
+  #viewer{
+    position:relative;
+    width:100%;max-width:640px;height:0;
+    overflow:hidden;border-radius:16px;
+    transition:height .35s ease;
+    border:1px solid transparent;
+    background:#000;
+    margin-bottom:18px;
+  }
+  #viewer.open{height:340px;border-color:var(--accent)}
+  #viewer iframe{width:100%;height:100%;border:0;display:block}
+  #viewer .bar{
+    position:absolute;top:0;left:0;right:0;
+    background:linear-gradient(180deg,rgba(6,10,25,.95),rgba(6,10,25,0));
+    padding:8px 12px;font-size:.8rem;color:var(--accent);
+    display:flex;justify-content:space-between;z-index:2;pointer-events:none;
+  }
+  .hint{color:var(--muted);font-size:.8rem;text-align:center;margin-top:14px;max-width:640px;line-height:1.6}
+</style>
+</head>
+<body>
+
+<h1>MC Server Waker</h1>
+<div class="sub">Öffnet die Seite <b id="urlText"></b> alle 3 Minuten für 7 Sekunden – du bleibst auf dieser Seite.</div>
+
+<div class="card">
+  <div class="clock" id="countdown">180
+    <small id="phaseLabel">Sekunden bis zum nächsten Aufruf</small>
+  </div>
+
+  <div class="state">
+    <span class="dot" id="dot"></span>
+    <span id="stateText">Warte auf Start…</span>
+  </div>
+
+  <div class="row">
+    <input type="text" id="urlInput" value="https://visionxrv.github.io/mc-server-waker/" spellcheck="false">
+    <button id="toggleBtn">Start</button>
+    <button class="secondary" id="nowBtn">Jetzt öffnen</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="statCycles">0</div><div class="l">Zyklen</div></div>
+    <div class="stat"><div class="v" id="statHits">0</div><div class="l">Aufrufe</div></div>
+    <div class="stat"><div class="v" id="statLast">–</div><div class="l">Letzter Aufruf</div></div>
+  </div>
+</div>
+
+<div id="viewer">
+  <div class="bar"><span>Seite ist geöffnet</span><span id="openCountdown">7,0 s</span></div>
+  <iframe id="frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>
+</div>
+
+<div class="log" id="log"></div>
+
+<div class="hint">
+  Der Aufruf passiert alle 3 Minuten, immer auf der vollen Minute (00, 03, 06 …).<br>
+  Die Seite wird 7 Sekunden lang angezeigt und danach wieder geschlossen, bis der nächste Ablauf vorbei ist.<br>
+  Zum Stoppen einfach „Stop“ drücken.
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var TARGET_DEFAULT = "https://visionxrv.github.io/mc-server-waker/";
+  var OPEN_MS   = 7000;     // wie lange die Seite offen bleibt
+  var PERIOD_MS = 180000;   // ein Zyklus = 3 Minuten
+
+  var $ = function(id){ return document.getElementById(id); };
+
+  var urlInput = $("urlInput"), toggleBtn = $("toggleBtn"), nowBtn = $("nowBtn");
+  var countdownEl = $("countdown"), phaseLabel = $("phaseLabel");
+  var dot = $("dot"), stateText = $("stateText");
+  var viewer = $("viewer"), frame = $("frame"), openCountdown = $("openCountdown");
+  var logEl = $("log"), urlText = $("urlText");
+  var statCycles = $("statCycles"), statHits = $("statHits"), statLast = $("statLast");
+
+  var running = false;
+  var timer = null, openTimer = null, tickTimer = null;
+  var cycles = 0, hits = 0, openMsLeft = 0, nextRun = 0;
+
+  try{
+    var saved = localStorage.getItem("waker.url");
+    if(saved) urlInput.value = saved;
+  }catch(e){}
+
+  urlText.textContent = urlInput.value;
+
+  function log(msg, cls){
+    var t = new Date().toLocaleTimeString("de-DE");
+    var line = document.createElement("div");
+    line.innerHTML = "<i>[" + t + "]</i> " + (cls ? '<span class="'+cls+'">' + msg + "</span>" : msg);
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+    while(logEl.children.length > 120) logEl.removeChild(logEl.firstChild);
+  }
+
+  function setState(mode, text){
+    dot.className = "dot" + (mode ? " " + mode : "");
+    stateText.textContent = text;
+  }
+
+  function currentUrl(){
+    var u = (urlInput.value || "").trim();
+    if(!u) u = TARGET_DEFAULT;
+    if(!/^https?:\/\//i.test(u)) u = "https://" + u;
+    return u;
+  }
+
+  function msToNextMinute(){
+    var now = new Date();
+    var next = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes() + 1, 0, 0);
+    return next - now;
+  }
+
+  function ping(u){
+    // zusätzlicher unsichtbarer Aufruf (zuverlässig, auch wenn iframe blockt)
+    try{
+      var img = new Image();
+      img.src = u + (u.indexOf("?") >= 0 ? "&" : "?") + "_waker=" + Date.now();
+    }catch(e){}
+    try{
+      if(window.fetch){
+        fetch(u, {mode:"no-cors", cache:"no-store", credentials:"omit"}).catch(function(){});
+      }
+    }catch(e){}
+  }
+
+  function openSite(reason){
+    var u = currentUrl();
+    urlText.textContent = u;
+
+    viewer.classList.remove("open");
+    frame.src = "about:blank";
+    // hart neu laden, damit der Server wirklich geweckt wird
+    setTimeout(function(){
+      frame.src = u + (u.indexOf("?") >= 0 ? "&" : "?") + "_waker=" + Date.now();
+      viewer.classList.add("open");
+    }, 60);
+
+    ping(u);
+    hits++;
+    cycles++;
+    statHits.textContent = hits;
+    statCycles.textContent = cycles;
+    statLast.textContent = new Date().toLocaleTimeString("de-DE");
+    log("<b>Seite geöffnet</b> (" + (reason || "Timer") + ") – 7 Sekunden sichtbar.");
+
+    var left = OPEN_MS;
+    openMsLeft = left;
+    openCountdown.textContent = (left/1000).toFixed(1) + " s";
+    clearInterval(openTimer);
+    openTimer = setInterval(function(){
+      left -= 100;
+      openMsLeft = Math.max(0, left);
+      openCountdown.textContent = Math.max(0, left/1000).toFixed(1) + " s";
+      if(left <= 0){
+        clearInterval(openTimer);
+        closeSite();
+      }
+    }, 100);
+  }
+
+  function closeSite(){
+    viewer.classList.remove("open");
+    setTimeout(function(){
+      if(!viewer.classList.contains("open")) frame.src = "about:blank";
+    }, 400);
+    setState("", "Warte bis zur nächsten vollen Minute …");
+    log("Seite geschlossen – warte auf den nächsten Ablauf.");
+  }
+
+  function tick(){
+    if(!running) return;
+    var ms = Math.max(0, nextRun - Date.now());
+
+    if(viewer.classList.contains("open")){
+      countdownEl.firstChild.nodeValue = (openMsLeft/1000).toFixed(1) + " ";
+      phaseLabel.textContent = "Sekunden Seitenzeit";
+    }else{
+      countdownEl.firstChild.nodeValue = Math.ceil(ms/1000) + " ";
+      phaseLabel.textContent = "Sekunden bis zum nächsten Aufruf";
+      setState("", "Bereit – nächster Aufruf um " +
+        new Date(nextRun).toLocaleTimeString("de-DE"));
+    }
+  }
+
+  function start(){
+    running = true;
+    toggleBtn.textContent = "Stop";
+    log("Gestartet. Aufruf alle 3 Minuten.");
+    nextRun = Date.now() + msToNextMinute();
+    tick();
+    log("Nächster Aufruf in " + Math.ceil((nextRun - Date.now())/1000) + " s.");
+    timer = setTimeout(function loop(){
+      if(!running) return;
+      openSite("Minute");
+      nextRun = Date.now() + PERIOD_MS;
+      timer = setTimeout(loop, PERIOD_MS);
+    }, nextRun - Date.now());
+    tickTimer = setInterval(tick, 200);
+  }
+
+  function stop(){
+    running = false;
+    toggleBtn.textContent = "Start";
+    clearTimeout(timer);
+    clearInterval(tickTimer);
+    clearInterval(openTimer);
+    viewer.classList.remove("open");
+    setTimeout(function(){ frame.src = "about:blank"; }, 400);
+    countdownEl.firstChild.nodeValue = "180 ";
+    phaseLabel.textContent = "Sekunden bis zum nächsten Aufruf";
+    setState("off", "Gestoppt");
+    log("Gestoppt.", "warn");
+  }
+
+  toggleBtn.addEventListener("click", function(){ running ? stop() : start(); });
+
+  nowBtn.addEventListener("click", function(){ openSite("Manuell"); });
+
+  urlInput.addEventListener("change", function(){
+    urlText.textContent = currentUrl();
+    try{ localStorage.setItem("waker.url", currentUrl()); }catch(e){}
+    log("URL geändert: " + currentUrl());
+  });
+
+  setState("off", "Bereit – auf Start klicken");
+  log("Bereit. Ziel: " + currentUrl());
+})();
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Server Waker – alle 3 Minuten</title>
+<title>Server Waker – alle 4 Minuten</title>
 <style>
   :root{
     --bg:#0b1020;
@@ -119,10 +119,10 @@
 <body>
 
 <h1>MC Server Waker</h1>
-<div class="sub">Öffnet die Seite <b id="urlText"></b> alle 3 Minuten für 7 Sekunden – du bleibst auf dieser Seite.</div>
+<div class="sub">Öffnet die Seite <b id="urlText"></b> alle 4 Minuten für 7 Sekunden – du bleibst auf dieser Seite.</div>
 
 <div class="card">
-  <div class="clock" id="countdown">180
+  <div class="clock" id="countdown">240
     <small id="phaseLabel">Sekunden bis zum nächsten Aufruf</small>
   </div>
 
@@ -152,7 +152,7 @@
 <div class="log" id="log"></div>
 
 <div class="hint">
-  Der Aufruf passiert alle 3 Minuten, immer auf der vollen Minute (00, 03, 06 …).<br>
+  Der Aufruf passiert alle 4 Minuten, immer auf der vollen Minute (00, 04, 08 …).<br>
   Die Seite wird 7 Sekunden lang angezeigt und danach wieder geschlossen, bis der nächste Ablauf vorbei ist.<br>
   Zum Stoppen einfach „Stop“ drücken.
 </div>
@@ -163,7 +163,7 @@
 
   var TARGET_DEFAULT = "https://visionxrv.github.io/mc-server-waker/";
   var OPEN_MS   = 7000;     // wie lange die Seite offen bleibt
-  var PERIOD_MS = 180000;   // ein Zyklus = 3 Minuten
+  var PERIOD_MS = 240000;   // ein Zyklus = 4 Minuten
 
   var $ = function(id){ return document.getElementById(id); };
 
@@ -209,6 +209,14 @@
   function msToNextMinute(){
     var now = new Date();
     var next = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes() + 1, 0, 0);
+    return next - now;
+  }
+
+  function msToNextSlot(){
+    var now = new Date();
+    var step = Math.round(PERIOD_MS / 60000);
+    var m = (Math.floor(now.getMinutes() / step) + 1) * step;
+    var next = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), m, 0, 0);
     return next - now;
   }
 
@@ -287,8 +295,8 @@
   function start(){
     running = true;
     toggleBtn.textContent = "Stop";
-    log("Gestartet. Aufruf alle 3 Minuten.");
-    nextRun = Date.now() + msToNextMinute();
+    log("Gestartet. Aufruf alle 4 Minuten.");
+    nextRun = Date.now() + msToNextSlot();
     tick();
     log("Nächster Aufruf in " + Math.ceil((nextRun - Date.now())/1000) + " s.");
     timer = setTimeout(function loop(){
@@ -308,7 +316,7 @@
     clearInterval(openTimer);
     viewer.classList.remove("open");
     setTimeout(function(){ frame.src = "about:blank"; }, 400);
-    countdownEl.firstChild.nodeValue = "180 ";
+    countdownEl.firstChild.nodeValue = "240 ";
     phaseLabel.textContent = "Sekunden bis zum nächsten Aufruf";
     setState("off", "Gestoppt");
     log("Gestoppt.", "warn");

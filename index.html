@@ -152,7 +152,7 @@
 <div class="log" id="log"></div>
 
 <div class="hint">
-  Der Aufruf passiert alle 4 Minuten, immer auf der vollen Minute (00, 04, 08 …).<br>
+  Der Aufruf passiert alle 4 Minuten – gerechnet ab dem Moment, in dem du „Start“ drückst.<br>
   Die Seite wird 7 Sekunden lang angezeigt und danach wieder geschlossen, bis der nächste Ablauf vorbei ist.<br>
   Zum Stoppen einfach „Stop“ drücken.
 </div>
@@ -204,20 +204,6 @@
     if(!u) u = TARGET_DEFAULT;
     if(!/^https?:\/\//i.test(u)) u = "https://" + u;
     return u;
-  }
-
-  function msToNextMinute(){
-    var now = new Date();
-    var next = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes() + 1, 0, 0);
-    return next - now;
-  }
-
-  function msToNextSlot(){
-    var now = new Date();
-    var step = Math.round(PERIOD_MS / 60000);
-    var m = (Math.floor(now.getMinutes() / step) + 1) * step;
-    var next = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), m, 0, 0);
-    return next - now;
   }
 
   function ping(u){
@@ -296,7 +282,7 @@
     running = true;
     toggleBtn.textContent = "Stop";
     log("Gestartet. Aufruf alle 4 Minuten.");
-    nextRun = Date.now() + msToNextSlot();
+    nextRun = Date.now() + PERIOD_MS;
     tick();
     log("Nächster Aufruf in " + Math.ceil((nextRun - Date.now())/1000) + " s.");
     timer = setTimeout(function loop(){
